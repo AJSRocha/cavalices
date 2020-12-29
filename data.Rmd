@@ -14,11 +14,6 @@ library(openxlsx)
 library(ggplot2)
 ```
 
-```{r dados_extra}
-portos_slv<-read.csv("C:\\Google Drive\\Ruivices\\dados\\codigos_portos.csv")
-
-```
-
 ```{r connection}
 con = dbConnect(MySQL(),user='pnab-consulta',password='20!pnAb',
                 dbname='pnab',host='192.168.150.105')
@@ -246,7 +241,7 @@ select distinct p1.id
 
 # Query corrigida
 
-```{sql, connection = con, output.var = vma_temp}
+```{r, connection = con, output.var = vma_temp}
 select distinct p1.id id_viagem,
                 p2.id id_venda,
                 p3.id id_denominacao,
