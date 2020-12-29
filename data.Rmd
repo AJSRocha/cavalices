@@ -11,7 +11,7 @@ library(RMySQL)
 library(dplyr)
 library(reshape2)
 library(openxlsx)
-
+library(ggplot2)
 ```
 
 ```{r dados_extra}
@@ -41,6 +41,7 @@ select distinct p1.id id_viagem,
                 p2.data data_venda,
                 emb.nome nome_navio,
                 emb.matricula,
+                emb.cfr,
                 por.nome lota,
                 por.codigo_slv codporto,
                 case when p1.id in 
@@ -133,6 +134,7 @@ select distinct p1.id id_viagem,
                 p2.data data_venda,
                 emb.nome nome_navio,
                 emb.matricula,
+                emb.cfr,
                 por.nome lota,
                 por.codigo_slv codporto,
                 'MIS_MIS_0_0_0' arte_eu,
@@ -240,68 +242,68 @@ select distinct p1.id
 
 ```
 
-## GUX - all especies
+# Query corrigida
 
-```{sql gux_all_am,connection=con, output.var=gux_all_am}
-
+```{sql, connection = con, output.var = vma_temp}
 select distinct p1.id id_viagem,
                 p2.id id_venda,
                 p3.id id_denominacao,
                 p6.id id_caixa,
                 p7.id id_spp,
                 p9.id id_comp,
-                case when rpo.desig = 'Norte' then 'NW' 
-                when rpo.desig = 'Centro' then 'SW' else rpo.desig end zona,
+      case when rpo.desig = 'Norte' then 'NW' 
+           when rpo.desig = 'Centro' then 'SW' 
+           else rpo.desig end zona,
                 p1.data_fin,
                 p2.data data_venda,
-                emb.cfr,
                 emb.nome nome_navio,
                 emb.matricula,
                 por.nome lota,
                 por.codigo_slv codporto,
-						    case when p1.id in (
-				 select x.viagem id 
-	 from (select z.viagem,count(*) contagem 
-	         from pnab.viagem_metier z 
-	     group by z.viagem)x 
-	        where x.contagem <> 1) then 'MIS_MIS_0_0_0' else met.desig end 
-	              arte_eu,
-	              p2.peso_vendido,
-	              p4.desig cat_com,
-	              p5.desig denominacao,
-	              p5.codigo_slv,
-	              p5.cod_fao cod_fao_venda,
+      case when p1.id in (select x.viagem id 
+          from (
+         select z.viagem,
+                count(*) contagem 
+           from pnab.viagem_metier z 
+       group by z.viagem)x 
+          where x.contagem <> 1) 
+                then 'MIS_MIS_0_0_0' 
+           else met.desig end 
+                arte_eu,
+                p2.peso_vendido,
+                p4.desig cat_com,
+                p5.desig denominacao,
+                p5.codigo_slv esp_slv,
+                p5.cod_fao cod_fao_venda,
                 cast(substr(p2.data,6,2) as decimal(5,0)) mes,
                 cast(substr(p2.data,1,4) as decimal(5,0)) ano,
                 p3.peso_total peso_total_dom,
                 p3.peso_amostrado peso_amostrado_dom,
-                p3.n_caixas,
-                p3.n_caixas_amostradas,
-                case when p8.cod_fao='' then p8.cod_ipma else p8.cod_fao end especie_am,
+                p3.n_caixas,p3.n_caixas_amostradas,
+                p8.cod_fao,
                 p6.peso_total peso_total_caixa,
                 p6.peso_amostrado peso_am_caixa,
                 p6.n_total n_total_caixa,
                 p6.n_amostrados n_amostrados_caixa,
                 p7.peso_total peso_total_spp,
                 p7.n_total n_total_spp,
-                p7.peso_amostrado_comprimentos peso_am_spp_comp,
+                p7.peso_amostrado_comprimentos peso_am_spp,
                 p7.n_amostrado_comprimentos,
                 p7.n_machos n_machos_tot,
                 p7.n_femeas n_femeas_tot,
-                p7.n_indeterminados n_indeterminados_tot,
                 p7.n_nao_observados n_nao_observados_tot,
-                p7.peso_machos_amostr,
+                p7.n_nao_determinados n_nao_determinados_tot,                                       p7.peso_machos_amostr,
                 p7.peso_femeas_amostr,
-                p7.peso_indeterminados_amostr,
+                p7.peso_nao_observados_amostr,
                 p9.classe_comp,
                 p9.n_machos,
                 p9.n_femeas,
-                p9.n_indeterminados,
                 p9.n_nao_observados,
+                p9.n_nao_determinados,
                 p9.peso_machos,
                 p9.peso_femeas,
-                p9.peso_indeterminados,
-                p9.peso_nao_observados
+                p9.peso_nao_observados,
+                p9.peso_nao_determinados
            from pnab.viagem p1,
                 pnab.venda p2,
                 pnab.embarcacao emb,
@@ -330,57 +332,24 @@ select distinct p1.id id_viagem,
                 p9.amostra=p7.id and 
                 p6.denominacao=p3.id and 
                 p3.estrat_amostragem=1 and 
-                p3.estrat_amostragem not in (2,3,4) and 
                 p1.id not in (
-         select viagem id 
-           from pnab.viagem_regiao 
-          where regiao <> 5) and 
-                p9.n_nao_observados is not null and 
-                p2.data between '2017-01-01' and '2019-12-31' and 
-                p1.id in(
-select distinct p1.id 
-           from pnab.viagem p1,
-                pnab.venda p2,
-                pnab.embarcacao emb,
-                pnab.porto por,
-                pnab.regiao_porto rpo,
-                pnab.denominacao p3,
-                pnab.cat_comercial p4,
-                pnab.denominacao_comercial p5,
-                pnab.caixa p6,
-                pnab.amostra_especie p7,
-                pnab.especie_generica p8
-          where p2.viagem=p1.id and 
-                emb.id=p1.embarcacao and 
-                por.id=p2.porto and
-                rpo.id=por.regiao and
-                p2.id=p3.origem and
-                p4.id=p3.cat_comercial and
-                p5.id=p3.denominacao_comercial and
-                p7.caixa=p6.id and
-                p7.especie=p8.id and 
-                p6.denominacao=p3.id and
-                p3.estrat_amostragem=1 and
-                p3.estrat_amostragem not in (2,3,4) and
-                p1.id not in (
-         select viagem id 
-           from pnab.viagem_regiao 
-          where regiao <> 5) and 
-                p8.cod_fao in ('CTZ','GUG','GUM','GUN','GUR','GUU','GUX','LDV','LEP','GUY') and
-                p2.data between '2017-01-01' and '2019-12-31'
-                           )
-       UNION ALL
+         select viagem id from 
+                pnab.viagem_regiao where 
+                regiao <> 5) and p9.n_nao_observados is not null and 
+                p8.cod_fao in ('VMA','MAS') and 
+                p2.data between '2017-01-01' and '2019-12-31' 
+      UNION ALL /*ver viagens sem metier*/
 select distinct p1.id id_viagem,
                 p2.id id_venda,
                 p3.id id_denominacao,
                 p6.id id_caixa,
                 p7.id id_spp,
                 p9.id id_comp,
-                case when rpo.desig = 'Norte' then 'NW' 
-                when rpo.desig = 'Centro' then 'SW' else rpo.desig end zona,
+      case when rpo.desig = 'Norte' then 'NW' 
+           when rpo.desig = 'Centro' then 'SW' else 
+                rpo.desig end zona,
                 p1.data_fin,
                 p2.data data_venda,
-                emb.cfr,
                 emb.nome nome_navio,
                 emb.matricula,
                 por.nome lota,
@@ -389,7 +358,7 @@ select distinct p1.id id_viagem,
                 p2.peso_vendido,
                 p4.desig cat_com,
                 p5.desig denominacao,
-                p5.codigo_slv,
+                p5.codigo_slv esp_slv,
                 p5.cod_fao cod_fao_venda,
                 cast(substr(p2.data,6,2) as decimal(5,0)) mes,
                 cast(substr(p2.data,1,4) as decimal(5,0)) ano,
@@ -397,33 +366,32 @@ select distinct p1.id id_viagem,
                 p3.peso_amostrado peso_amostrado_dom,
                 p3.n_caixas,
                 p3.n_caixas_amostradas,
-                case when p8.cod_fao='' then p8.cod_ipma else p8.cod_fao end especie_am,
+                p8.cod_fao,
                 p6.peso_total peso_total_caixa,
                 p6.peso_amostrado peso_am_caixa,
                 p6.n_total n_total_caixa,
                 p6.n_amostrados n_amostrados_caixa,
                 p7.peso_total peso_total_spp,
                 p7.n_total n_total_spp,
-                p7.peso_amostrado_comprimentos peso_am_spp_comp,
+                p7.peso_amostrado_comprimentos peso_am_spp,
                 p7.n_amostrado_comprimentos,
                 p7.n_machos n_machos_tot,
                 p7.n_femeas n_femeas_tot,
-                p7.n_indeterminados n_indeterminados_tot,
                 p7.n_nao_observados n_nao_observados_tot,
+                p7.n_nao_determinados n_nao_determinados_tot,
                 p7.peso_machos_amostr,
                 p7.peso_femeas_amostr,
-                p7.peso_indeterminados_amostr,
+                p7.peso_nao_observados_amostr,
                 p9.classe_comp,
                 p9.n_machos,
                 p9.n_femeas,
-                p9.n_indeterminados,
                 p9.n_nao_observados,
+                p9.n_nao_determinados,
                 p9.peso_machos,
                 p9.peso_femeas,
-                p9.peso_indeterminados,
-                p9.peso_nao_observados
-           from pnab.viagem p1,
-                pnab.venda p2,
+                p9.peso_nao_observados,
+                p9.peso_nao_determinados from 
+                pnab.viagem p1,pnab.venda p2,
                 pnab.embarcacao emb,
                 pnab.porto por,
                 pnab.regiao_porto rpo,
@@ -433,157 +401,345 @@ select distinct p1.id id_viagem,
                 pnab.caixa p6,
                 pnab.amostra_especie p7,
                 pnab.especie_generica p8,
-                pnab.comprimentos p9
+                pnab.comprimentos p9 
           where p2.viagem=p1.id and 
                 emb.id=p1.embarcacao and 
                 por.id=p2.porto and 
-                rpo.id=por.regiao and 
-                p2.id=p3.origem and 
-                p4.id=p3.cat_comercial and 
-                p5.id=p3.denominacao_comercial and 
-                p7.caixa=p6.id and 
-                p7.especie=p8.id and 
-                p9.amostra=p7.id and
-                p6.denominacao=p3.id and 
-                p3.estrat_amostragem=1 and 
-                p3.estrat_amostragem not in (2,3,4) and 
-                p1.id not in (select viagem id 
-           from pnab.viagem_regiao 
-          where regiao <> 5) and 
-                p9.n_nao_observados is not null and 
-                p2.data between '2017-01-01' and '2019-12-31' and
-						    p1.id in (
-select distinct p1.id 
-           from pnab.viagem p1,
-                pnab.venda p2,
-                pnab.embarcacao emb,
-                pnab.porto por,
-                pnab.regiao_porto rpo,
-                pnab.denominacao p3,
-                pnab.cat_comercial p4,
-                pnab.denominacao_comercial p5,
-                pnab.caixa p6,
-                pnab.amostra_especie p7,
-                pnab.especie_generica p8
-          where p2.viagem=p1.id and 
-                emb.id=p1.embarcacao and
-                por.id=p2.porto and
-                rpo.id=por.regiao and
-                p2.id=p3.origem and
-                p4.id=p3.cat_comercial and 
-                p5.id=p3.denominacao_comercial and 
-                p7.caixa=p6.id and 
-                p7.especie=p8.id and 
-                p6.denominacao=p3.id and p3.estrat_amostragem=1 and 
-                p3.estrat_amostragem not in (2,3,4) and 
-                p1.id not in (select viagem id 
-           from pnab.viagem_regiao where regiao <> 5) and 
-                p8.cod_fao in ('CTZ','GUG','GUM','GUN','GUR','GUU','GUX','LDV','LEP','GUY') and 
-                p2.data between '2017-01-01' and '2019-12-31'
-                           ) and 
-                p1.id not in (
-select distinct p1.id
-           from pnab.viagem p1,
-                pnab.venda p2,
-                pnab.embarcacao emb,
-                pnab.porto por,
-                pnab.regiao_porto rpo,
-                pnab.viagem_metier v_met,
-                pnab.metier met,
-                pnab.denominacao p3,
-                pnab.cat_comercial p4,
-                pnab.denominacao_comercial p5,
-                pnab.caixa p6,
-                pnab.amostra_especie p7,
-                pnab.especie_generica p8,
-                pnab.comprimentos p9
-          where p2.viagem=p1.id and 
-                v_met.viagem=p1.id and 
-                v_met.metier=met.id and 
-                emb.id=p1.embarcacao and 
-                por.id=p2.porto and 
-                rpo.id=por.regiao and 
-                p2.id=p3.origem and 
-                p4.id=p3.cat_comercial and 
-                p5.id=p3.denominacao_comercial and 
-                p7.caixa=p6.id and 
-                p7.especie=p8.id and 
-                p9.amostra=p7.id and 
-                p6.denominacao=p3.id and 
-                p3.estrat_amostragem=1 and 
-                p3.estrat_amostragem not in (2,3,4) and
-                p1.id not in (
-         select viagem id 
-           from pnab.viagem_regiao 
-          where regiao <> 5) and 
-                p2.data between '2017-01-01' and '2019-12-31'and 
-                p1.id in (
-select distinct p1.id 
-           from pnab.viagem p1,
-                pnab.venda p2,
-                pnab.embarcacao emb,
-                pnab.porto por,
-                pnab.regiao_porto rpo,
-                pnab.denominacao p3,
-                pnab.cat_comercial p4,
-                pnab.denominacao_comercial p5,
-                pnab.caixa p6,
-                pnab.amostra_especie p7,
-                pnab.especie_generica p8
-          where p2.viagem=p1.id and 
-                emb.id=p1.embarcacao and 
-                por.id=p2.porto and 
-                rpo.id=por.regiao and 
-                p2.id=p3.origem and 
-                p4.id=p3.cat_comercial and 
-                p5.id=p3.denominacao_comercial and 
-                p7.caixa=p6.id and 
-                p7.especie=p8.id and 
-                p6.denominacao=p3.id and p3.estrat_amostragem=1 and 
-                p3.estrat_amostragem not in (2,3,4) and
-                p1.id not in (
-         select viagem id 
-           from pnab.viagem_regiao 
-          where regiao <> 5) and 
-                p8.cod_fao in ('CTZ','GUG','GUM','GUN','GUR','GUU','GUX','LDV','LEP','GUY') and 
-                p2.data between '2017-01-01' and '2019-12-31'
-                           )
-                           )
-
+                rpo.id=por.regiao and p2.id=p3.origem and p4.id=p3.cat_comercial 
+                           and p5.id=p3.denominacao_comercial and p7.caixa=p6.id and p7.especie=p8.id and p9.amostra=p7.id
+                           and p6.denominacao=p3.id and p3.estrat_amostragem=1 and p1.id not in (select viagem id from pnab.viagem_regiao where regiao <> 5) 
+                           and p9.n_nao_observados is not null and p8.cod_fao in ('VMA','MAS') 
+                           and p2.data between '2017-01-01' and '2019-12-31' 
+                           and p1.id not in
+                           (select distinct p1.id
+                           from pnab.viagem p1,pnab.venda p2,pnab.embarcacao emb,pnab.porto por,pnab.regiao_porto rpo,pnab.viagem_metier v_met,pnab.metier met,
+                           pnab.denominacao p3,pnab.cat_comercial p4,pnab.denominacao_comercial p5,
+                           pnab.caixa p6,pnab.amostra_especie p7,pnab.especie_generica p8,pnab.comprimentos p9
+                           where p2.viagem=p1.id and v_met.viagem=p1.id and v_met.metier=met.id
+                           and emb.id=p1.embarcacao and por.id=p2.porto and rpo.id=por.regiao and p2.id=p3.origem and p4.id=p3.cat_comercial 
+                           and p5.id=p3.denominacao_comercial and p7.caixa=p6.id and p7.especie=p8.id and p9.amostra=p7.id
+                           and p6.denominacao=p3.id and p3.estrat_amostragem=1 and p1.id not in (select viagem id from pnab.viagem_regiao where regiao <> 5) 
+                           and p8.cod_fao in ('VMA','MAS') 
+                           and p2.data between '2017-01-01' and '2019-12-31')
 ```
 
+
+# prep
 
 ```{r}
 PASTA_RESULTADOS<-"./resultados"
 if(!dir.exists(PASTA_RESULTADOS)) dir.create(PASTA_RESULTADOS)
 
 # fichAmostragens<-"pil_amplia_tmp.csv" ## ficheiro sardinha
-
 # fichAmostragens<-"lota_dados_base_csm_gux2019.csv" # substitui p df q tem os dados do ruivo
 # sep_fichAmostragens<-","
 
-fichAmostragens <- vma_temp
+fichDesembarques<-"dados//desembMAS1986_2019.csv"
+sep_fichDesembarques<-","
 
-fichDesembarques<-"1_desembarques-mensais_2019.csv"
-sep_fichDesembarques<-";"
+# fichPortos<-"lista_portos_202003061620.csv"
+# fichPortos <- portos_slv
+# sep_fichPortos<-";"
 
-fichPortos<-"lista_portos_202003061620.csv"
-sep_fichPortos<-";"
+fichPortos<-"dados//codigos_portos.csv"
+sep_fichPortos<-","
 
-# fichPortos<-"codigos_portos.csv"
-# sep_fichPortos<-","
-
-fichFrota<-"fleet_frg2.csv"
+fichFrota<-"dados//fleet_frg2.csv"
 sep_fichFrota<-","
 
-fichFrotaDGRM<-"2_classificacao_viagens_amostradas_fleet_dgrm_202003161020.csv"
+fichFrotaDGRM<-"dados//2_classificacao_viagens_amostradas_fleet_dgrm_202003161020.csv"
 sep_fichFrotaDGRM<-","
 
-fichCoefPesoComprimento<-"wldata2018.csv"
-sep_fichCoefPesoComprimento<-","
+# fichCoefPesoComprimento<-"wldata2018.csv"
+# sep_fichCoefPesoComprimento<-","
+fichCoefPesoComprimento <- data.frame(a = 0.004154*0.001, b = 3.172306)
+# a_MAS <- 0.004154*0.001 # valores fornecidos para 2010 por ManÃ© (email 23-3-2011)
+# b_MAS <- 3.172306# valores fornecidos para 2010 por ManÃ© (email 23-3-2011)
+
+```
+
+```{r}
+#ligar -fica em memoria para ser rapido - alterar para ficar em ficheiro, no caso de haver pouca memoria.
+con_local <- dbConnect(RSQLite::SQLite(), ":memory:")
+# os dados vao p 1 ambiente virtual e p isso n se veem
+
+# guarda tabela de Amostragens em "amplia_tmp"
+dbWriteTable(con_local, "amplia_tmp", vma_temp, overwrite = TRUE)
+
+# guarda tabela de Desembarques em "amplia2_tmp"
+tab<-read.csv(fichDesembarques, sep=sep_fichDesembarques)
+colnames(tab)<-tolower(colnames(tab))
+dbWriteTable(con_local, "amplia2_tmp", tab, overwrite = TRUE)
+
+# guarda tabela de Portos em "porto"
+tab<-read.csv(fichPortos, sep=sep_fichPortos)
+dbWriteTable(con_local, "porto", tab, overwrite = TRUE)
+
+# guarda tabela de Frota em "fleet_frg2"
+tab<-read.csv(fichFrota, sep=sep_fichFrota)
+dbWriteTable(con_local, "fleet_frg2", tab, overwrite = TRUE)
+
+# guarda tabela de Frota em "fleet_dgrm"
+tab<-read.csv(fichFrotaDGRM, sep=sep_fichFrotaDGRM)
+dbWriteTable(con_local, "fleet_dgrm", tab, overwrite = TRUE)
+
+# guarda tabela de coeficiente Peso_Comprimento em "coef_peso_comp"
+# tab<-read.csv(fichCoefPesoComprimento, sep=sep_fichCoefPesoComprimento)
+dbWriteTable(con_local, "coef_peso_comp", fichCoefPesoComprimento, overwrite = TRUE)
+
+dbListTables(con_local)
+```
+
+* **amplia_tmp** são as amostragens em lota
+
+* **amplia_tmp2** são os desembarques (sic/pescart)
+
+* **portos** é tipo, duh
+
+* **fleet_frg2** é arrumação dos barquitos por extractos
+
+* **fleet_dgrm** é atribuição de estrato as viagens amostradas
+
+## Teste com fleet_frg2
+
+```{sql,connection=con_local,output.var=amplia_tmp}
+select distinct p1.id_viagem,
+                    p1.id_venda,
+                    p1.id_denominacao,
+                    p1.id_caixa,
+                    p1.id_spp,
+                    p1.id_comp,
+                    p1.zona,
+                    p1.data_fin,
+                    p1.data_venda,
+                    p1.cfr,
+                    p1.nome_navio,
+                    p1.matricula,
+                    p1.lota,
+                    p1.codporto,
+                    case when p2.PNAB_STRATA='EXTRASPF_0_0_0' then 
+                    'PS_SPF_>=16_0_0' else 
+                    p2.PNAB_STRATA end arte_eu,
+                    p1.peso_vendido,
+                    p1.cat_com,
+                    p1.denominacao, 
+                    p1.mes,
+                    p1.ano,
+                    p1.peso_total_dom,
+                    p1.peso_amostrado_dom,
+                    p1.n_caixas,
+                    p1.n_caixas_amostradas,
+                    p1.cod_fao,
+                    p1.peso_total_caixa,
+                    p1.peso_am_caixa,
+                    p1.n_total_caixa,
+                    p1.n_amostrados_caixa,
+                    p1.peso_total_spp,
+                    p1.n_total_spp,
+                    p1.peso_am_spp,
+                    p1.n_amostrado_comprimentos,
+                    p1.n_machos_tot,
+                    p1.n_femeas_tot,
+                    p1.n_indeterminados_tot,
+                    p1.n_nao_observados_tot,
+                    p1.peso_machos_amostr,
+                    p1.peso_femeas_amostr,
+                    p1.peso_indeterminados_amostr,
+                    p1.classe_comp,
+                    p1.n_machos, 
+                    p1.n_femeas,
+                    p1.n_indeterminados,
+                    p1.n_nao_observados,
+                    p1.peso_machos,
+                    p1.peso_femeas,
+                    p1.peso_indeterminados,
+                    p1.peso_nao_observados
+               from amplia_tmp p1,
+                    fleet_frg2 p2
+              where p2.CFR=p1.cfr and 
+                    p1.arte_eu='MIS_MIS_0_0_0'
+          UNION ALL
+    select distinct p1.id_viagem,
+                    p1.id_venda,
+                    p1.id_denominacao,
+                    p1.id_caixa,
+                    p1.id_spp,
+                    p1.id_comp,
+                    p1.zona,
+                    p1.data_fin,
+                    p1.data_venda,
+                    p1.cfr,
+                    p1.nome_navio,
+                    p1.matricula,
+                    p1.lota,
+                    p1.codporto,
+                    p1.arte_eu,
+                    p1.peso_vendido,
+                    p1.cat_com,
+                    p1.denominacao,
+                    p1.mes,
+                    p1.ano,
+                    p1.peso_total_dom,
+                    p1.peso_amostrado_dom,
+                    p1.n_caixas,
+                    p1.n_caixas_amostradas,
+                    p1.cod_fao,
+                    p1.peso_total_caixa,
+                    p1.peso_am_caixa,
+                    p1.n_total_caixa,
+                    p1.n_amostrados_caixa,
+                    p1.peso_total_spp,
+                    p1.n_total_spp,
+                    p1.peso_am_spp,
+                    p1.n_amostrado_comprimentos,
+                    p1.n_machos_tot,
+                    p1.n_femeas_tot,
+                    p1.n_indeterminados_tot,
+                    p1.n_nao_observados_tot,
+                    p1.peso_machos_amostr,
+                    p1.peso_femeas_amostr,
+                    p1.peso_indeterminados_amostr,
+                    p1.classe_comp,
+                    p1.n_machos, 
+                    p1.n_femeas,
+                    p1.n_indeterminados,
+                    p1.n_nao_observados,
+                    p1.peso_machos,
+                    p1.peso_femeas,
+                    p1.peso_indeterminados,
+                    p1.peso_nao_observados
+               from amplia_tmp p1 
+              where p1.arte_eu<>'MIS_MIS_0_0_0'
+           order by id_viagem,
+                    id_venda,
+                    id_denominacao,
+                    id_caixa,
+                    id_spp,
+                    classe_comp
+```
+## Teste com fleet DGRM
+
+```{sql,connection=con_local,output.var=amplia_tmp}
+select distinct p1.id_viagem,
+                   p1.id_venda,
+                   p1.id_denominacao,
+                   p1.id_caixa,
+                   p1.id_spp,
+                   p1.id_comp,
+                   p1.zona,
+                   p1.data_fin,
+                   p1.data_venda,
+                   p1.cfr,
+                   p1.nome_navio,
+                   p1.matricula,
+                   p1.lota,
+                   p1.codporto,
+         case when p2.metier_dgrm='EXTRASPF_0_0_0' then 
+                   'PS_SPF_>=16_0_0' else p2.metier_dgrm end arte_eu,
+                   p1.peso_vendido,
+                   p1.cat_com,
+                   p1.denominacao,
+                   p1.mes,
+                   p1.ano,
+                   p1.peso_total_dom,
+                   p1.peso_amostrado_dom,
+                   p1.n_caixas,
+                   p1.n_caixas_amostradas,
+                   p1.especie_am,
+                   p1.peso_total_caixa,
+                   p1.peso_am_caixa,
+                   p1.n_total_caixa,
+                   p1.n_amostrados_caixa,
+                   p1.peso_total_spp,
+                   p1.n_total_spp,
+                   p1.peso_am_spp,
+                   p1.n_amostrado_comprimentos,
+                   p1.n_machos_tot,
+                   p1.n_femeas_tot,
+                   p1.n_indeterminados_tot,
+                   p1.n_nao_observados_tot,
+                   p1.peso_machos_amostr,
+                   p1.peso_femeas_amostr,
+                   p1.peso_indeterminados_amostr,
+                   p1.classe_comp,
+                   p1.n_machos, 
+                   p1.n_femeas,
+                   p1.n_indeterminados,
+                   p1.n_nao_observados,
+                   p1.peso_machos,
+                   p1.peso_femeas,
+                   p1.peso_indeterminados,
+                   p1.peso_nao_observados
+              from amplia_tmp p1,
+                   fleet_dgrm p2
+             where p2.cfr=p1.cfr and 
+                   p1.arte_eu='MIS_MIS_0_0_0'
+         UNION ALL
+   select distinct p1.id_viagem,
+                   p1.id_venda,
+                   p1.id_denominacao,
+                   p1.id_caixa,
+                   p1.id_spp,
+                   p1.id_comp,
+                   p1.zona,
+                   p1.data_fin,
+                   p1.data_venda,
+                   p1.cfr,
+                   p1.nome_navio,
+                   p1.matricula,
+                   p1.lota,
+                   p1.codporto,
+                   p1.arte_eu,
+                   p1.peso_vendido,
+                   p1.cat_com,
+                   p1.denominacao,
+                   p1.mes,
+                   p1.ano,
+                   p1.peso_total_dom,
+                   p1.peso_amostrado_dom,
+                   p1.n_caixas,
+                   p1.n_caixas_amostradas,
+                   p1.especie_am,
+                   p1.peso_total_caixa,
+                   p1.peso_am_caixa,
+                   p1.n_total_caixa,
+                   p1.n_amostrados_caixa,
+                   p1.peso_total_spp,
+                   p1.n_total_spp,
+                   p1.peso_am_spp,
+                   p1.n_amostrado_comprimentos,
+                   p1.n_machos_tot,
+                   p1.n_femeas_tot,
+                   p1.n_indeterminados_tot,
+                   p1.n_nao_observados_tot,
+                   p1.peso_machos_amostr,
+                   p1.peso_femeas_amostr,
+                   p1.peso_indeterminados_amostr,
+                   p1.classe_comp,
+                   p1.n_machos,
+                   p1.n_femeas,
+                   p1.n_indeterminados,
+                   p1.n_nao_observados,
+                   p1.peso_machos,
+                   p1.peso_femeas,
+                   p1.peso_indeterminados,
+                   p1.peso_nao_observados
+              from amplia_tmp p1 
+             where p1.arte_eu<>'MIS_MIS_0_0_0'
+          order by id_viagem,
+                   id_venda,
+                   id_denominacao,
+                   id_caixa,id_spp,
+                   classe_comp
 ```
 
 
 
-#a_MAS <- 0.004154*0.001 	      # valores fornecidos para 2010 por ManÃ© (email 23-3-2011)
-#b_MAS <- 3.172306 		          # valores fornecidos para 2010 por ManÃ© (email 23-3-2011)
+
+
+
+
+
+
+
+
