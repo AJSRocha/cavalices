@@ -76,6 +76,7 @@ select distinct p1.id id_viagem,
                 p7.n_femeas n_femeas_tot,
                 p7.n_nao_observados n_nao_observados_tot,
                 p7.n_indeterminados n_indeterminados_tot,
+                p7.peso_indeterminados_amostr,
                 p7.peso_machos_amostr,
                 p7.peso_femeas_amostr,
                 p7.peso_n_obs_amostr,
@@ -162,6 +163,7 @@ select distinct p1.id id_viagem,
                 p7.n_femeas n_femeas_tot,
                 p7.n_nao_observados n_nao_observados_tot,
                 p7.n_indeterminados n_indeterminados_tot,
+                p7.peso_indeterminados_amostr,
                 p7.peso_machos_amostr,
                 p7.peso_femeas_amostr,
                 p7.peso_n_obs_amostr,
@@ -291,19 +293,21 @@ select distinct p1.id id_viagem,
                 p7.n_amostrado_comprimentos,
                 p7.n_machos n_machos_tot,
                 p7.n_femeas n_femeas_tot,
-                p7.n_nao_observados n_nao_observados_tot,
-                p7.n_nao_determinados n_nao_determinados_tot,                                       p7.peso_machos_amostr,
+                p7.n_obs n_nao_observados_tot,
+                p7.n_indeterminados n_indeterminados_tot,
+                p7.peso_indeterminados_amostr,
+                p7.peso_machos_amostr,
                 p7.peso_femeas_amostr,
-                p7.peso_nao_observados_amostr,
+                p7.peso_n_obs_amostr,
                 p9.classe_comp,
                 p9.n_machos,
                 p9.n_femeas,
                 p9.n_nao_observados,
-                p9.n_nao_determinados,
+                p9.n_indeterminados,
                 p9.peso_machos,
                 p9.peso_femeas,
                 p9.peso_nao_observados,
-                p9.peso_nao_determinados
+                p9.peso_indeterminados
            from pnab.viagem p1,
                 pnab.venda p2,
                 pnab.embarcacao emb,
@@ -377,20 +381,21 @@ select distinct p1.id id_viagem,
                 p7.n_amostrado_comprimentos,
                 p7.n_machos n_machos_tot,
                 p7.n_femeas n_femeas_tot,
-                p7.n_nao_observados n_nao_observados_tot,
-                p7.n_nao_determinados n_nao_determinados_tot,
+                p7.n_obs n_nao_observados_tot,
+                p7.n_indeterminados n_indeterminados_tot,
                 p7.peso_machos_amostr,
                 p7.peso_femeas_amostr,
-                p7.peso_nao_observados_amostr,
+                p7.peso_n_obs_amostr,
+                p7.peso_indeterminados_amostr,
                 p9.classe_comp,
                 p9.n_machos,
                 p9.n_femeas,
-                p9.n_nao_observados,
-                p9.n_nao_determinados,
+                p9.n_obs,
+                p9.n_indeterminados,
                 p9.peso_machos,
                 p9.peso_femeas,
-                p9.peso_nao_observados,
-                p9.peso_nao_determinados from 
+                p9.peso_n_obs,
+                p9.peso_indeterminados from 
                 pnab.viagem p1,pnab.venda p2,
                 pnab.embarcacao emb,
                 pnab.porto por,
@@ -502,7 +507,7 @@ dbListTables(con_local)
 
 ## Teste com fleet_frg2
 
-```{sql,connection=con_local,output.var=amplia_tmp}
+```{sql,connection=con_local,output.var=amplia_tmp_alt}
 select distinct p1.id_viagem,
                     p1.id_venda,
                     p1.id_denominacao,
@@ -517,7 +522,7 @@ select distinct p1.id_viagem,
                     p1.matricula,
                     p1.lota,
                     p1.codporto,
-                    case when p2.PNAB_STRATA='EXTRASPF_0_0_0' then 
+          case when p2.PNAB_STRATA='EXTRASPF_0_0_0' then 
                     'PS_SPF_>=16_0_0' else 
                     p2.PNAB_STRATA end arte_eu,
                     p1.peso_vendido,
@@ -617,6 +622,7 @@ select distinct p1.id_viagem,
                     id_spp,
                     classe_comp
 ```
+
 ## Teste com fleet DGRM
 
 ```{sql,connection=con_local,output.var=amplia_tmp}
@@ -645,7 +651,7 @@ select distinct p1.id_viagem,
                    p1.peso_amostrado_dom,
                    p1.n_caixas,
                    p1.n_caixas_amostradas,
-                   p1.especie_am,
+                   p1.cod_fao,
                    p1.peso_total_caixa,
                    p1.peso_am_caixa,
                    p1.n_total_caixa,
@@ -699,7 +705,7 @@ select distinct p1.id_viagem,
                    p1.peso_amostrado_dom,
                    p1.n_caixas,
                    p1.n_caixas_amostradas,
-                   p1.especie_am,
+                   p1.cod_fao,
                    p1.peso_total_caixa,
                    p1.peso_am_caixa,
                    p1.n_total_caixa,
@@ -733,7 +739,13 @@ select distinct p1.id_viagem,
                    classe_comp
 ```
 
+# Fechar ligações
 
+```{r}
+unloadNamespace("dbConnect")
+unloadNamespace("RMySQL")
+rm(con,con_local)
+```
 
 
 
